@@ -1,49 +1,95 @@
-# code to add RHS numbers to all lake pulse sites and all Qc fish datasets
+# code exploratoire analyse de données IFD PEN-OC/DJ/T/OF
 
 rm(list=ls())
 
 library(tidyverse)
 library(readxl)
 library(scales)
+library(sp)
 
-# 0) load GIS info with LCE and RHS databases
+good.surveys <- c('PENDJ','PENOF','PENT','PENOC')
 
-LCE <- read_xlsx('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/GIS/tous_les_LCE.xlsx')
+# load LCE db, LP db with LCE info, and MFFP fish data
 
-# RHS <- readOGR(dsn = "/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/GIS/RHS/", layer = "RHS")
-# proj4string(RHS)
+LCE <- read_xlsx('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/GIS output/tous_les_LCE.xlsx')
 
-# 1) add RHS to all Lake Pulse sites
-
-LP_LCE <- read_xlsx('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/GIS/LP_Qc_NoLacLCE.xlsx') %>%
+LP_LCE <- read_xlsx('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/GIS output/LP_Qc_NoLacLCE.xlsx') %>%
   rename(RHS = ID_RHS)
 
-PS <- read_xlsx(skip=2,'/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/MFFP/IFA - Rapport Pêche Sportive 2000-2018.xlsx')
-colnames(PS)[2] <- 'LCE'
-n_distinct(PS$LCE) #9135 sites!
-PS %>% distinct(LCE) %>% select(LCE) -> ps_sites
-ps_sites <- left_join(ps_sites, LCE)
-table(ps_sites$ecosysteme) #8918 lacs, 53 rivières
+# #en date du 7 feb 2020, les données de PS sont inutilisables (on nous a fourni les quotas, pas les captures...)
+# PS <- read_xlsx(skip=2,'/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/MFFP/IFA - Rapport Pêche Sportive 2000-2018.xlsx')
+# colnames(PS)[2] <- 'LCE'
+# n_distinct(PS$LCE) #9135 sites!
+# PS %>% distinct(LCE) %>% select(LCE) -> ps_sites
+# ps_sites <- left_join(ps_sites, LCE)
+# table(ps_sites$ecosysteme) #8918 lacs, 53 rivières
 
 INV <- read_xlsx(skip=5,"/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/MFFP/IFD- 1 - Rapport Inventaire sur plan d'eau (IPE) 2000-2018.xlsx")
 colnames(INV)[1] <- 'LCE'
 n_distinct(INV$LCE) #3260 sites!
-INV %>% distinct(LCE) %>% select(LCE) -> inv_sites
+
+# #only keeping the good stuff (see metadata)
+# INV <- filter(INV, `Type de pêche` %in% good.surveys)
+# n_distinct(INV$LCE) #648 sites
+
+INV %>% select(LCE:Longitude) %>% distinct(LCE, .keep_all = T) -> inv_sites
+sum(inv_sites$LCE %in% LCE$LCE)/nrow(inv_sites) # 98.8 % of sites have LCE
 inv_sites <- left_join(inv_sites, LCE)
 table(inv_sites$ecosysteme) #2357 lacs, 864 rivières
 table(INV$`Type de pêche`)
 
+# #sites LP sans LCE
+# LP_LCE[is.na(LP_LCE$LCE),] -> LP_noLCE
+# #peut-on retrouver ces sites dans la bdd inv?
+# #adding the closest lake to data
+# out <- data.frame()
+# inv_sites_with_coords <- filter(inv_sites, !is.na(Latitude), !is.na(Longitude))
+# for(i in 1:4){
+#   tmp <- LP_noLCE[i,]
+#   dist.df <- as.matrix(tmp[,c(3,2)])
+#   coords.mffp <- inv_sites_with_coords %>% select(Longitude,Latitude) %>% as.matrix
+#   dist.df <- rbind(dist.df, coords.mffp)
+#   dist.mat <- sp::spDists(dist.df, longlat=TRUE)
+#   min.dist <- which.min(dist.mat[2:nrow(dist.mat),1])
+#   tmp <- cbind(tmp,inv_sites_with_coords[min.dist,])
+#   out <- bind_rows(out,tmp)
+# }
+# out$coordsLP <- paste(out$latitude,out$longitude,sep=', ')
+# out$coordsMFFP <- paste(out$Latitude,out$Longitude,sep=', ')
+# INV %>% filter(LCE == '68828') 
+
+# # des données PENOF sont dispos pour ce Lac Lake Pulse '68828'
+# # Par contre il y a un problème avec ce numéro LCE dans bdd IFD... le lce est faux. Alors je mets le LCE custom 
+# # inventé pour LP, dans la bdd du MFFP. Il y sûrement d'autres LCE éronnés
+
+INV[INV$LCE == '68828','LCE'] <- 'LP066'
+
+rm(inv_sites)
+
+LP_LCE <- LP_LCE %>% select(-LCE, -Notes) %>% rename(LCE = LCE_adapt)
+
 # 3) combien se recoupent?
 
-sum(LP_LCE$LCE %in% INV$LCE)
-sum(LP_LCE$LCE %in% PS$LCE)
-sum(LP_LCE$LCE %in% c(PS$LCE,INV$LCE))
+sum(LP_LCE$LCE %in% INV$LCE) #26 lacs
+#sum(LP_LCE$LCE %in% PS$LCE)
+#sum(LP_LCE$LCE %in% c(PS$LCE,INV$LCE))
 
 inv_lp <- filter(INV, LCE %in% LP_LCE$LCE)
+inv_lp <- inv_lp[,c(1:4,10:16)]
 table(inv_lp$`Type de pêche`)
-#surtout de la pêche non-normalisée..
+table(inv_lp$`Engin`)
+#beaucoup de pêche non-normalisée
+
+inv_lp <- left_join(inv_lp,LP_LCE,by='LCE')
+inv_lp <- arrange(inv_lp, desc(`Date de levée`), LCE)
+                  
+
+inv_lp <- inv_lp %>% filter(`Type de pêche` %in% good.surveys)
+
+
 
 ### GRADIENTS taille-latitude ####
+
 
 inv <- INV
 rm(INV)
