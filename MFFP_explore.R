@@ -7,6 +7,10 @@ library(tidyverse)
 library(readxl)
 library(scales)
 library(sp)
+library(rworldmap)
+library(RColorBrewer)
+
+'%!in%' <- function(x,y)!('%in%'(x,y))
 
 good.surveys <- c('PENDJ','PENOF','PENT','PENOC')
 
@@ -15,16 +19,19 @@ good.surveys <- c('PENDJ','PENOF','PENT','PENOC')
 LCE <- read_xlsx('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/GIS output/tous_les_LCE.xlsx')
 
 # #en date du 7 feb 2020, les données de PS sont inutilisables (on nous a fourni les quotas, pas les captures...)
-# PS <- read_xlsx(skip=2,'/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/MFFP/IFA - Rapport Pêche Sportive 2000-2018.xlsx')
-# colnames(PS)[2] <- 'LCE'
-# n_distinct(PS$LCE) #9135 sites!
-# PS %>% distinct(LCE) %>% select(LCE) -> ps_sites
-# ps_sites <- left_join(ps_sites, LCE)
-# table(ps_sites$ecosysteme) #8918 lacs, 53 rivières
+PS <- read_xlsx(skip=2,'/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/MFFP/IFA - Rapport Pêche Sportive 2000-2018.xlsx')
+colnames(PS)[2] <- 'LCE'
+n_distinct(PS$LCE) #9135 sites!
+PS %>% distinct(LCE) %>% select(LCE) -> ps_sites
+ps_sites <- left_join(ps_sites, LCE)
+table(ps_sites$ecosysteme) #8918 lacs, 53 rivières
 
 INV <- read_xlsx(skip=5,"/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/MFFP/IFD- 1 - Rapport Inventaire sur plan d'eau (IPE) 2000-2018.xlsx")
 colnames(INV)[1] <- 'LCE'
 n_distinct(INV$LCE) #3260 sites!
+INV %>% distinct(LCE) %>% select(LCE) -> inv_sites
+inv_sites <- left_join(inv_sites, LCE)
+table(inv_sites$ecosysteme) #8918 lacs, 53 rivières
 
 #only keeping the good stuff (see metadata)
 INV <- filter(INV, `Type de pêche` %in% good.surveys)
@@ -35,6 +42,39 @@ sum(inv_sites$LCE %in% LCE$LCE)/nrow(inv_sites) # 98.8 % of sites have LCE
 inv_sites <- left_join(inv_sites, LCE)
 table(inv_sites$ecosysteme) #2357 lacs, 864 rivières
 table(INV$`Type de pêche`)
+
+#### carte ####
+
+PEN_sites <- INV %>% filter(`Type de pêche` %in% good.surveys) %>% select(LCE:Longitude) %>% distinct(LCE, .keep_all = T) %>% rename(lat=Latitude,long=Longitude)
+PNN_sites <- INV %>% filter(`Type de pêche` %!in% good.surveys) %>% select(LCE:Longitude) %>% distinct(LCE, .keep_all = T)%>% rename(lat=Latitude,long=Longitude)
+
+#map
+map <- getMap(resolution = "low")
+cols <- brewer.pal(7, 'Dark2')[1:3] 
+
+ps_sites$col <- 1
+PEN_sites$col <- 2
+PNN_sites$col <- 3
+all_sites <- bind_rows(ps_sites,PEN_sites,PNN_sites) %>% select(lat,long,col) %>% filter(!is.na(lat), !is.na(long))
+
+x <- all_sites$long
+y <- all_sites$lat
+
+xrange <- range(x)+c(-1,1)
+yrange <- range(y)+c(-1,1)
+plot(map, xlim = xrange, ylim = yrange,col='light gray',border=0,asp=1.2,axes=F,cex.lab=0.5)
+
+points(x=x,y=y,pch=16,col=alpha(cols[all_sites$col],0.8),cex=0.3)
+
+legend(x=xrange[2],y=yrange[2],legend=c('PS','PEN','PNN'),pch=16,col=cols,bty='n')
+
+leg.x.rg <- range(xrange)[1]-(range(xrange)[1]-range(xrange)[2])*0.75
+leg.x.rg <- seq(leg.x.rg,range(xrange)[2],length.out = 100)
+ypos <- range(yrange)[1]
+points(rep(ypos[1],100)~leg.x.rg, col=mapcols, pch=16)
+#text(x=leg.x.rg[50],y=ypos+0.2,cex=1,label=make.italic(name),pos=3)
+text(x=leg.x.rg[c(1,100)],y=ypos-0.2,cex=1,label=c('low','high'),pos=1)
+
 
 ### GRADIENTS taille-latitude ####
 

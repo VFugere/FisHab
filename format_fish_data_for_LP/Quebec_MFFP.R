@@ -1,9 +1,7 @@
 # ce script prend l'IFD du MFFP et extrait les données pour les lacs LP
-# si un lac LP a été échantilloné plusieurs fois, des filtres séquentiels sont appliqués:
-# 1) données provenant de PENDJ, PENOF, PENT, ou PENOC priorisé par rapport à PNN
-# 2) les échantillonages plus récents sont priorisés
-# 3) la distance entre les points d'échantillonage est aussi calculés pour identifier
-# les sites problématiques. Les coordonnées de chaque site a été vérifiée dans google maps
+# la correspondence spatiale des sites a été vérifiée en calculant la distance
+# entre les points MFFP et celui LP, et en vérifiant dans google maps que les points
+# tombent dans le même lac/polygone
 
 rm(list=ls())
 
