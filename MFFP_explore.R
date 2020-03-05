@@ -33,9 +33,9 @@ INV %>% distinct(LCE) %>% select(LCE) -> inv_sites
 inv_sites <- left_join(inv_sites, LCE)
 table(inv_sites$ecosysteme) #8918 lacs, 53 rivières
 
-#only keeping the good stuff (see metadata)
-INV <- filter(INV, `Type de pêche` %in% good.surveys)
-n_distinct(INV$LCE) #648 sites
+# #only keeping the good stuff (see metadata)
+# INV <- filter(INV, `Type de pêche` %in% good.surveys)
+# n_distinct(INV$LCE) #648 sites
 
 INV %>% select(LCE:Longitude) %>% distinct(LCE, .keep_all = T) -> inv_sites
 sum(inv_sites$LCE %in% LCE$LCE)/nrow(inv_sites) # 98.8 % of sites have LCE
@@ -50,31 +50,35 @@ PNN_sites <- INV %>% filter(`Type de pêche` %!in% good.surveys) %>% select(LCE:
 
 #map
 map <- getMap(resolution = "low")
-cols <- brewer.pal(7, 'Dark2')[1:3] 
+cols <- brewer.pal(7, 'Dark2')[1:3]
+#cols <- nationalparkcolors::park_palette("Saguaro",3)
+#cols <- brewer.pal(11, 'RdYlBu')[c(3,6,9)]
 
-ps_sites$col <- 1
-PEN_sites$col <- 2
-PNN_sites$col <- 3
-all_sites <- bind_rows(ps_sites,PEN_sites,PNN_sites) %>% select(lat,long,col) %>% filter(!is.na(lat), !is.na(long))
+ps_sites$col <- 3
+ps_sites$alph <- 0.4
+ps_sites$ptcex <- 0.15
+
+PEN_sites$col <- 1
+PEN_sites$alph <- 0.8
+PEN_sites$ptcex <- 0.4
+
+PNN_sites$col <- 2
+PNN_sites$alph <- 0.5
+PNN_sites$ptcex <- 0.3
+
+all_sites <- bind_rows(PEN_sites,PNN_sites,ps_sites) %>% select(lat,long,col,alph,ptcex) %>% filter(!is.na(lat), !is.na(long))
 
 x <- all_sites$long
 y <- all_sites$lat
 
 xrange <- range(x)+c(-1,1)
 yrange <- range(y)+c(-1,1)
-plot(map, xlim = xrange, ylim = yrange,col='light gray',border=0,asp=1.2,axes=F,cex.lab=0.5)
 
-points(x=x,y=y,pch=16,col=alpha(cols[all_sites$col],0.8),cex=0.3)
-
-legend(x=xrange[2],y=yrange[2],legend=c('PS','PEN','PNN'),pch=16,col=cols,bty='n')
-
-leg.x.rg <- range(xrange)[1]-(range(xrange)[1]-range(xrange)[2])*0.75
-leg.x.rg <- seq(leg.x.rg,range(xrange)[2],length.out = 100)
-ypos <- range(yrange)[1]
-points(rep(ypos[1],100)~leg.x.rg, col=mapcols, pch=16)
-#text(x=leg.x.rg[50],y=ypos+0.2,cex=1,label=make.italic(name),pos=3)
-text(x=leg.x.rg[c(1,100)],y=ypos-0.2,cex=1,label=c('low','high'),pos=1)
-
+pdf('~/Desktop/MFFPmap.pdf',width=16,height = 14, pointsize = 30)
+plot(map, xlim = xrange, ylim = yrange,col='gray95',border=0,asp=1.2,axes=F,cex.lab=0.5)
+points(x=x,y=y,pch=16,col=alpha(cols[all_sites$col],all_sites$alph),cex=all_sites$ptcex)
+legend(x=xrange[2]-8,y=yrange[2],legend=c('standardized surveys','non-standardized surveys','sport fishing'),pch=16,col=cols,bty='n')
+dev.off()
 
 ### GRADIENTS taille-latitude ####
 
