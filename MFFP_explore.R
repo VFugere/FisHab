@@ -18,30 +18,31 @@ good.surveys <- c('PENDJ','PENOF','PENT','PENOC')
 
 LCE <- read_xlsx('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/GIS output/tous_les_LCE.xlsx')
 
-# #en date du 7 feb 2020, les données de PS sont inutilisables (on nous a fourni les quotas, pas les captures...)
-PS <- read_xlsx(skip=2,'/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/MFFP/IFA - Rapport Pêche Sportive 2000-2018.xlsx')
-colnames(PS)[2] <- 'LCE'
-n_distinct(PS$LCE) #9135 sites!
-PS %>% distinct(LCE) %>% select(LCE) -> ps_sites
-ps_sites <- left_join(ps_sites, LCE)
-table(ps_sites$ecosysteme) #8918 lacs, 53 rivières
+# # #en date du 7 feb 2020, les données de PS sont inutilisables (on nous a fourni les quotas, pas les captures...)
+# PS <- read_xlsx(skip=2,'/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/MFFP/IFA - Rapport Pêche Sportive 2000-2018.xlsx')
+# colnames(PS)[2] <- 'LCE'
+# n_distinct(PS$LCE) #9135 sites!
+# PS %>% distinct(LCE) %>% select(LCE) -> ps_sites
+# ps_sites <- left_join(ps_sites, LCE)
+# table(ps_sites$ecosysteme) #8918 lacs, 53 rivières
 
 INV <- read_xlsx(skip=5,"/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/MFFP/IFD- 1 - Rapport Inventaire sur plan d'eau (IPE) 2000-2018.xlsx")
 colnames(INV)[1] <- 'LCE'
-n_distinct(INV$LCE) #3260 sites!
+
+#only keeping the good stuff (see metadata)
+INV <- filter(INV, `Type de pêche` %in% good.surveys)
+
+n_distinct(INV$LCE)
+n_distinct(INV$Espèce)
 INV %>% distinct(LCE) %>% select(LCE) -> inv_sites
 inv_sites <- left_join(inv_sites, LCE)
-table(inv_sites$ecosysteme) #8918 lacs, 53 rivières
-
-# #only keeping the good stuff (see metadata)
-# INV <- filter(INV, `Type de pêche` %in% good.surveys)
-# n_distinct(INV$LCE) #648 sites
+table(inv_sites$ecosysteme)
 
 INV %>% select(LCE:Longitude) %>% distinct(LCE, .keep_all = T) -> inv_sites
-sum(inv_sites$LCE %in% LCE$LCE)/nrow(inv_sites) # 98.8 % of sites have LCE
+sum(inv_sites$LCE %in% LCE$LCE)/nrow(inv_sites) # 98.6 % of sites have LCE
 inv_sites <- left_join(inv_sites, LCE)
 table(inv_sites$ecosysteme) #2357 lacs, 864 rivières
-table(INV$`Type de pêche`)
+table(inv_sites$`Type de pêche`)
 
 #### carte ####
 
