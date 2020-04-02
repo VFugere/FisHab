@@ -18,72 +18,90 @@ good.surveys <- c('PENDJ','PENOF','PENT','PENOC')
 
 LCE <- read_xlsx('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/GIS output/tous_les_LCE.xlsx')
 
-# # #en date du 7 feb 2020, les données de PS sont inutilisables (on nous a fourni les quotas, pas les captures...)
-# PS <- read_xlsx(skip=2,'/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/MFFP/IFA - Rapport Pêche Sportive 2000-2018.xlsx')
-# colnames(PS)[2] <- 'LCE'
-# n_distinct(PS$LCE) #9135 sites!
-# PS %>% distinct(LCE) %>% select(LCE) -> ps_sites
-# ps_sites <- left_join(ps_sites, LCE)
-# table(ps_sites$ecosysteme) #8918 lacs, 53 rivières
+#en date du 7 feb 2020, les données de PS sont inutilisables (on nous a fourni les quotas, pas les captures...)
+PS <- read_xlsx(skip=2,'/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/MFFP/IFA - Rapport Pêche Sportive 2000-2018.xlsx')
+colnames(PS)[2] <- 'LCE'
+#n_distinct(PS$LCE) #9135 sites!
+#sum(is.na(PS$LCE))
+PS %>% distinct(LCE) %>% select(LCE) -> ps_sites
+ps_sites <- left_join(ps_sites, LCE)
+#table(ps_sites$ecosysteme) #8918 lacs, 53 rivières
 
 INV <- read_xlsx(skip=5,"/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/MFFP/IFD- 1 - Rapport Inventaire sur plan d'eau (IPE) 2000-2018.xlsx")
 colnames(INV)[1] <- 'LCE'
-
-# INV %>% select(LCE:Longitude) %>% distinct(LCE, .keep_all = T) -> inv_sites
-# sum(inv_sites$LCE %in% LCE$LCE)/nrow(inv_sites) # 98.6 % of sites have LCE
-# inv_sites <- left_join(inv_sites, LCE)
-# table(inv_sites$ecosysteme) #2357 lacs, 864 rivières
-# table(inv_sites$`Type de pêche`)
-
 INV$yr <- lubridate::year(INV$`Date de levée`)
 INV$abund <- as.numeric(INV$`Nbre capturé`)
 
-#only keeping the good stuff (see metadata)
-INV <- filter(INV, `Type de pêche` %in% good.surveys)
-
-bad.sp.codes <- c('RIEN','-','POIS','NI','AU','CYSP')
+bad.sp.codes <- c('RIEN','-','POIS','NI','AU')
 INV <- filter(INV, `Espèce` %!in% bad.sp.codes)
-INV <- filter(INV, `Engin` == 'Filet expérimental') 
 INV <- filter(INV, !is.na(abund)) 
 
-n_distinct(INV$LCE)
-n_distinct(INV$Espèce)
 INV %>% distinct(LCE, .keep_all = T) %>% select(LCE,`Nom plan d'eau`,`Type de pêche`) -> inv_sites
 inv_sites <- left_join(inv_sites, LCE)
-table(inv_sites$ecosysteme)
-n_distinct(inv_sites$nom)
-# noms <- inv_sites[,c(2,8)]
-# writexl::write_xlsx(noms,'~/Desktop/noms.xlsx')
+sum(inv_sites$LCE %in% LCE$LCE)/nrow(inv_sites) # 98.6 % of sites have LCE
+table(inv_sites$ecosysteme) #2357 lacs, 864 rivières
+table(inv_sites$`Type de pêche`)
 
-inv_sites$LCE[inv_sites$ecosysteme == 'riviere']
-INV <- filter(INV, LCE != '04060000') #removing the one river
+#extracting PEN and PNN from DB
+PNN <- filter(INV, `Type de pêche` == 'PNN')
+PEN <- filter(INV, `Type de pêche` %in% good.surveys)
+PEN <- filter(PEN, `Engin` == 'Filet expérimental') #quelques trucs qui devraient pas être là 
+
+PEN %>% distinct(LCE, .keep_all = T) %>% select(LCE,`Nom plan d'eau`,`Type de pêche`) -> PEN_sites
+PEN_sites <- left_join(PEN_sites, LCE)
+# noms <- PEN_sites[,c(2,8)]
+# writexl::write_xlsx(noms,'~/Desktop/noms.xlsx')
+PNN %>% distinct(LCE, .keep_all = T) %>% select(LCE,`Nom plan d'eau`,`Type de pêche`) -> PNN_sites
+PNN_sites <- left_join(PNN_sites, LCE)
+sum(PNN_sites$LCE %in% PEN_sites$LCE)
+
+PEN_sites$LCE[PEN_sites$ecosysteme == 'riviere']
+PEN <- filter(PEN, LCE != '04060000') #removing the one river
+
+#exporter fichiers
+PEN %>% group_by(`Espèce`) %>% summarize(abund = sum(`abund`)) %>% arrange(desc(abund)) %>% writexl::write_xlsx(., '~/Desktop/poissonsMFFP.xlsx')
+
+# ## recoupement avec autres BDD du Qc
+# load("/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/GIS output/QGIS_output_fishab.qgz.RData")
+# melcc <- read_xlsx('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/MELCC/poissons/poissons.accdb.xlsx', col_types = 'text') %>%
+#   select(STATION) %>% rename(LCE = STATION) %>% distinct(LCE)
+# LCE_poissons <- bind_rows(select(inv_sites,LCE), select(ps_sites,LCE), select(melcc, LCE)) %>% distinct(LCE) %>% drop_na
+# RSVL <- RSVL %>% filter(NO_LAC %in% LCE_poissons$LCE) %>% select(NOM_LAC:FICHE_SUIV)
+# benthos <- benthos %>% filter(NO_LCE %in% LCE_poissons$LCE) %>% select(NO_STATION:DOCUM)
+# profiles <- read_xlsx('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/MELCC/profils lacs/Demande de Annick St-Pierre FisHab - RS.XLSX')
+# colnames(profiles)[10] <- 'LCE'
+# profiles <- profiles %>% filter(LCE %in% LCE_poissons$LCE)
+# writexl::write_xlsx(path= '~/Desktop/MFFP_MELCC_overlap.xlsx',
+#                     x = list(rsvl = RSVL, benthos = benthos, profiles = profiles))
+# poiss_benthos <- INV %>% filter(LCE %in% benthos$NO_LCE)
+# writexl::write_xlsx(poiss_benthos,path= '~/Desktop/poissons_sites_benthos.xlsx')
 
 # #test ensemencement: peut-on retrouver un lac par son nom?
-# inv_sites$nom_court <- sub(',\\s.*','',inv_sites$nom.minuscule)
+# PEN_sites$nom_court <- sub(',\\s.*','',PEN_sites$nom.minuscule)
 # test<-readxl::read_xlsx('~/Desktop/ensem_Lau_2017.xlsx')
 # test$Nom <- sub(',\\s.*','',test$Nom)
-# lau_sites <- filter(inv_sites, nom_court %in% test$Nom)
+# lau_sites <- filter(PEN_sites, nom_court %in% test$Nom)
 # writexl::write_xlsx(lau_sites,'~/Desktop/testsites.xlsx')
-# filter(INV,LCE=='00442')
+# filter(PEN,LCE=='00442')
 
 #combien de time series
-ts <- INV %>% mutate(LCE_yr = paste0(LCE,'_',yr)) %>% distinct(LCE_yr, .keep_all = T) %>% 
+ts <- PEN %>% mutate(LCE_yr = paste0(LCE,'_',yr)) %>% distinct(LCE_yr, .keep_all = T) %>% 
   select(LCE:Engin,Latitude,Longitude,yr,LCE_yr) %>% add_count(LCE) %>% distinct(LCE, .keep_all = T) %>% 
   select(LCE:Longitude,n) %>% rename(yrs.of.data = n)
 hist(ts$yrs.of.data, breaks=30)
 max(ts$yrs.of.data) #pas de time series utilisables
 
 #combien de zero pour les espèces ciblées?
-savi <- INV %>% filter(`Type de pêche` == 'PENDJ', `Espèce` == 'SAVI') %>%
+savi <- PEN %>% filter(`Type de pêche` == 'PENDJ', `Espèce` == 'SAVI') %>%
   group_by(LCE,yr) %>% summarize(abund = sum(abund))
 sum(savi$abund == 0)
-sana <- INV %>% filter(`Type de pêche` == 'PENT', `Espèce` == 'SANA') %>%
+sana <- PEN %>% filter(`Type de pêche` == 'PENT', `Espèce` == 'SANA') %>%
   group_by(LCE,yr) %>% summarize(abund = sum(abund))
 sum(sana$abund == 0)
-safo <- INV %>% filter(`Type de pêche` == 'PENOF', `Espèce` == 'SAFO') %>%
+safo <- PEN %>% filter(`Type de pêche` == 'PENOF', `Espèce` == 'SAFO') %>%
   group_by(LCE,yr) %>% summarize(abund = sum(abund))
 sum(safo$abund == 0) #1 zero
-saal <- INV %>% filter(`Type de pêche` == 'PENOC', `Espèce` == 'SAAL') %>%
+saal <- PEN %>% filter(`Type de pêche` == 'PENOC', `Espèce` == 'SAAL') %>%
   group_by(LCE,yr) %>% summarize(abund = sum(abund))
 sum(saal$abund == 0)
 
