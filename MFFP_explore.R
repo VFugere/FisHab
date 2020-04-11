@@ -16,7 +16,7 @@ good.surveys <- c('PENDJ','PENOF','PENT','PENOC')
 
 # load LCE db, LP db with LCE info, and MFFP fish data
 
-LCE <- read_xlsx('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/GIS output/tous_les_LCE.xlsx')
+LCE <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/GIS output/tous_les_LCE.xlsx')
 
 # #en date du 7 feb 2020, les données de PS sont inutilisables (on nous a fourni les quotas, pas les captures...)
 # PS <- read_xlsx(skip=2,'/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/MFFP/IFA - Rapport Pêche Sportive 2000-2018.xlsx')
