@@ -27,7 +27,7 @@ LCE <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/GIS output/to
 # ps_sites <- left_join(ps_sites, LCE)
 # #table(ps_sites$ecosysteme) #8918 lacs, 53 rivières
 
-INV <- read_xlsx(skip=5,"/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/MFFP/IFD- 1 - Rapport Inventaire sur plan d'eau (IPE) 2000-2018.xlsx")
+INV <- read_xlsx(skip=5,"~/Google Drive/Recherche/Lake Pulse Postdoc/data/MFFP/IFD- 1 - Rapport Inventaire sur plan d'eau (IPE) 2000-2018.xlsx")
 colnames(INV)[1] <- 'LCE'
 INV$yr <- lubridate::year(INV$`Date de levée`)
 INV$abund <- as.numeric(INV$`Nbre capturé`)
