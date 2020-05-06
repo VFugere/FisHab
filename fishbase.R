@@ -72,7 +72,7 @@ for(i in 1:length(fish)){
 }
 brains.df <- brains.df %>% select(Species, BodyWeight:EncCoeff) %>% drop_na
 
-#estimated trophic level#
+#estimated trophic level
 
 estimate.df <- data.frame()
 
@@ -81,7 +81,17 @@ for(i in 1:length(fish)){
   estimate.df <- bind_rows(estimate.df, tmp)
 }
 
+#estimated trophic level#
+
+genetics.df <- data.frame()
+
+for(i in 1:length(fish)){
+  tmp <- as.data.frame(genetics(fish[i]))
+  genetics.df <- bind_rows(genetics.df, tmp)
+}
+
 #export
 
 species_list_FB <- fish
 rm(i,fish,tmp, species_codes)
+save.image(file='./formatted_open_data/fishbase.RData')
