@@ -12,8 +12,12 @@ library(readxl)
 library(writexl)
 library(rfishbase)
 
-species_codes <- read_xlsx('~/Desktop/taxonomic_codes(v2020-06-05).xlsx')
-save(species_codes, file = './formatted_open_data/species_codes.RData')
+# species_codes <- read_xlsx('~/Desktop/taxonomic_codes(v2020-06-05).xlsx')
+# save(species_codes, file = './formatted_open_data/species_codes.RData')
+
+load('./formatted_open_data/species_codes.RData')
+
+#check species list
 
 fish <- species_codes$clean.species.name 
 fish <- str_replace(fish, '_', ' ')
@@ -23,66 +27,61 @@ fish <- sort(fish)
   
 fish.val <- validate_names(fish)
 fish[!fish %in% fish.val]
-
-fish[fish == 'Carassius cariassius'] <- 'Carassius carassius'
-fish[fish == 'Cichlasoma managuense'] <- 'Parachromis managuensis'
-fish[fish == 'Icthyomyzon castaneus'] <- 'Ichthyomyzon castaneus'
-fish[fish == 'Lampetra japonica'] <- 'Lethenteron camtschaticum'
-fish[102] <- 'Lampetra richardsoni'
-fish[fish == 'Lepisosteus platyrhinchus'] <- 'Lepisosteus platyrhincus'
-fish[fish == 'Moxostoma duquesnei'] <- 'Moxostoma duquesnii'
-fish[fish == 'Mylcheilus caurinus'] <- 'Mylocheilus caurinus'
-fish[fish == 'Oncorhynchus aquabonita'] <- 'Oncorhynchus mykiss'
-fish[fish == 'Phoxinus neogaeus'] <- 'Chrosomus neogaeus'
-fish[fish == 'Triglopsis quadricornis'] <- 'Myoxocephalus quadricornis'
-
-fish <- unique(fish)
-
-fish.val <- validate_names(fish)
-fish[!fish %in% fish.val]
 rm(fish.val)
 
-species.df <- data.frame()
+#species basic info
 
+species.df <- data.frame()
 for(i in 1:length(fish)){
   sp.tmp <- as.data.frame(species(fish[i]))
-  ecol.tmp <- as.data.frame(ecology(fish[i]))
-  brains.tmp <- as.data.frame(brains(fish[i]))
   species.df <- bind_rows(species.df, sp.tmp)
-  ecology.df <- bind_rows(ecology.df, ecol.tmp)
-  
 }
+rm(sp.tmp)
+
+#ecology tab
 
 ecology.df <- data.frame()
-
 for(i in 1:length(fish)){
-  sp.tmp <- as.data.frame(species(fish[i]))
   ecol.tmp <- as.data.frame(ecology(fish[i]))
-  brains.tmp <- as.data.frame(brains(fish[i]))
-  species.df <- bind_rows(species.df, sp.tmp)
   ecology.df <- bind_rows(ecology.df, ecol.tmp)
-  
 }
-
-brains.df <- data.frame()
-
-for(i in 1:length(fish)){
-  sp.tmp <- as.data.frame(species(fish[i]))
-  ecol.tmp <- as.data.frame(ecology(fish[i]))
-  brains.tmp <- as.data.frame(brains(fish[i]))
-  species.df <- bind_rows(species.df, sp.tmp)
-  ecology.df <- bind_rows(ecology.df, ecol.tmp)
-  
-}
-
-duplicated(species.df$Species)
+rm(ecol.tmp)
 duplicated(ecology.df$Species)
-
 ecology.df[ecology.df$Species == 'Acipenser oxyrinchus',]
 ecology.df[ecology.df$Species == 'Oncorhynchus clarkii',]
 ecology.df[ecology.df$Species == 'Salmo trutta',]
 ecology.df[ecology.df$Species == 'Salvelinus malma',]
-
 ecology.df <- ecology.df %>% distinct(Species, .keep_all = T)
 
-list_fields("Trophic Level")
+#diet
+
+diet.df <- data.frame()
+
+for(i in 1:length(fish)){
+  tmp <- as.data.frame(diet(fish[i]))
+  diet.df <- bind_rows(diet.df, tmp)
+}
+
+#brain size
+
+brains.df <- data.frame()
+
+for(i in 1:length(fish)){
+  tmp <- as.data.frame(brains(fish[i]))
+  brains.df <- bind_rows(brains.df, tmp)
+}
+brains.df <- brains.df %>% select(Species, BodyWeight:EncCoeff) %>% drop_na
+
+#estimated trophic level#
+
+estimate.df <- data.frame()
+
+for(i in 1:length(fish)){
+  tmp <- as.data.frame(estimate(fish[i]))
+  estimate.df <- bind_rows(estimate.df, tmp)
+}
+
+#export
+
+species_list_FB <- fish
+rm(i,fish,tmp, species_codes)
