@@ -12,7 +12,8 @@ library(readxl)
 library(writexl)
 library(rfishbase)
 
-species_codes <- read_xlsx('~/Desktop/taxonomic_codes(v2020-05-05).xlsx')
+species_codes <- read_xlsx('~/Desktop/taxonomic_codes(v2020-06-05).xlsx')
+save(species_codes, file = './formatted_open_data/species_codes.RData')
 
 fish <- species_codes$clean.species.name 
 fish <- str_replace(fish, '_', ' ')
