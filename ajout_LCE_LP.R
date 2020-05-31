@@ -1,6 +1,6 @@
 # ce script ajoute des LCEs au site lake pulse n'ayant pas de LCE car l'union dans GIS avec la GRHQ a retourné un polygone
 # sans numéro LCE. Trouve le point LCE le plus proche et export un fichier xlsx.
-# verdict: ces lacs n'ont vraiment pas de LCE
+# pour les cas problématiques, une vérification manuelle a ensuite été faite dans QGIS
 
 rm(list=ls())
 
@@ -11,9 +11,9 @@ library(sp)
 
 # 0) load GIS info with LCE and RHS databases
 
-LCE <- read_xlsx('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/GIS output/tous_les_LCE.xlsx')
+LCE <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/GIS output/tous_les_LCE.xlsx')
 
-LP_LCE <- read_xlsx('/Users/vincentfugere/Google Drive/Recherche/Lake Pulse Postdoc/data/GIS output/LP_Qc_NoLacLCE.xlsx') %>%
+LP_LCE <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/GIS output/LP_Qc_NoLacLCE.xlsx') %>%
   rename(RHS = ID_RHS)
 
 LP_LCE[is.na(LP_LCE$LCE),] %>% select(-LCE) -> LP_noLCE
@@ -22,9 +22,9 @@ LP_LCE[is.na(LP_LCE$LCE),] %>% select(-LCE) -> LP_noLCE
 out <- data.frame()
 LCE <- filter(LCE, ecosysteme == 'lac') #getting rid of rivers
 #getting rid of sites outside of quadrat of interest, to reduce computation time
-LCE <- filter(LCE, lat >= min(LP_noLCE$latitude), lat <= max(LP_noLCE$latitude))
-LCE <- filter(LCE, long >= min(LP_noLCE$longitude), long <= max(LP_noLCE$longitude))
-coords.LCE <- LCE[,c('long','lat')] %>% as.matrix
+LCE <- filter(LCE, lce_lat >= min(LP_noLCE$latitude), lce_lat <= max(LP_noLCE$latitude))
+LCE <- filter(LCE, lce_long >= min(LP_noLCE$longitude), lce_long <= max(LP_noLCE$longitude))
+coords.LCE <- LCE[,c('lce_long','lce_lat')] %>% as.matrix
 
 for(i in 1:4){
   tmp <- LP_noLCE[i,]
@@ -47,4 +47,4 @@ writexl::write_xlsx(out, '~/Desktop/LP_LCE_db.xlsx')
 # 45.966328, -74.301609	45.9664332832, -74.2957206426	oui, le même lac
 # 50.204665, -66.179286	50.2942100483, -66.2864789032	oui, pas le même lac
 
-# Bref, 06-066 == 
+# Bref, 06-066 == 68828 (dans l'IFA, même si dans la db LCE, pas de numéro)
