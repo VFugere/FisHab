@@ -33,7 +33,7 @@ rm(fish.val)
 species.df <- data.frame()
 for(i in 1:length(fish)){
   sp.tmp <- as.data.frame(species(fish[i]))
-  species.df <- bind_rows(species.df, sp.tmp)
+  species.df <- bind_rows(species.df, sp.tmp) %>% arrange(Species)
 }
 rm(sp.tmp)
 
@@ -42,7 +42,7 @@ rm(sp.tmp)
 ecology.df <- data.frame()
 for(i in 1:length(fish)){
   ecol.tmp <- as.data.frame(ecology(fish[i]))
-  ecology.df <- bind_rows(ecology.df, ecol.tmp)
+  ecology.df <- bind_rows(ecology.df, ecol.tmp) %>% arrange(Species)
 }
 rm(ecol.tmp)
 duplicated(ecology.df$Species)
@@ -58,7 +58,7 @@ diet.df <- data.frame()
 
 for(i in 1:length(fish)){
   tmp <- as.data.frame(diet(fish[i]))
-  diet.df <- bind_rows(diet.df, tmp)
+  diet.df <- bind_rows(diet.df, tmp) %>% arrange(Species)
 }
 
 #brain size
@@ -67,7 +67,7 @@ brains.df <- data.frame()
 
 for(i in 1:length(fish)){
   tmp <- as.data.frame(brains(fish[i]))
-  brains.df <- bind_rows(brains.df, tmp)
+  brains.df <- bind_rows(brains.df, tmp) %>% arrange(Species)
 }
 brains.df <- brains.df %>% select(Species, BodyWeight:EncCoeff) %>% drop_na
 
@@ -77,16 +77,16 @@ estimate.df <- data.frame()
 
 for(i in 1:length(fish)){
   tmp <- as.data.frame(estimate(fish[i]))
-  estimate.df <- bind_rows(estimate.df, tmp)
+  estimate.df <- bind_rows(estimate.df, tmp) %>% arrange(Species)
 }
 
-#estimated trophic level#
+#genetics
 
 genetics.df <- data.frame()
 
 for(i in 1:length(fish)){
   tmp <- as.data.frame(genetics(fish[i]))
-  genetics.df <- bind_rows(genetics.df, tmp)
+  genetics.df <- bind_rows(genetics.df, tmp) %>% arrange(Species)
 }
 
 #export
