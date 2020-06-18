@@ -12,11 +12,10 @@ library(readxl)
 library(writexl)
 library(rfishbase)
 
-# species_codes <- read_xlsx('~/Desktop/taxonomic_codes(v2020-06-05).xlsx')
+# species_codes <- read_xlsx('~/Desktop/taxonomic_codes(v2020-06-17).xlsx')
 # save(species_codes, file = './formatted_open_data/species_codes.RData')
 
 load('./formatted_open_data/species_codes.RData')
-
 #check species list
 
 fish <- species_codes$clean.species.name 
