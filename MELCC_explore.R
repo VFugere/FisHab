@@ -86,7 +86,21 @@ writexl::write_xlsx(marco.traits, '~/Desktop/Marco_traits.xlsx')
 ### morphological traits stolen from Su et al (2021) Science
 
 load('./formatted_open_data/Su_2001/trait with missing value filled')
+su <- PH_10705 %>% mutate_if(is.factor, as.character)
 
+marco <- data.frame('Genus.species' = marco.list, stringsAsFactors = F)
+marco$Genus <- sub(' .*', '', marco$Genus.species)
+marco$species <- sub('.* ', '', marco$Genus.species)
 
+marco$Genus %in% su$Genus
+su.sub <- su %>% filter(Genus %in% marco$Genus)
+su.sub$Genus.species <- str_replace(su.sub$Genus.species, '\\.', ' ')
+  
+marco$Genus.species %in% su.sub$Genus.species
+marco <- marco %>% left_join(su.sub)
 
+missing <- marco$Genus[is.na(marco$EdHd)]
+missing <- su.sub %>% group_by(Genus) %>% summarise_if(is.numeric, mean) %>% filter(Genus %in% missing)
 
+write_xlsx(marco, '~/Desktop/marco.xlsx')
+write_xlsx(missing, '~/Desktop/missing.xlsx')
