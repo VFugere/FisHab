@@ -50,3 +50,43 @@ idec <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/IDEC/BD-IDEC
 idec %>% distinct(BQMA_ID) %>% filter(BQMA_ID %in% sites$STATION.BQMA)
 
 10/334
+
+#### traits for Marco
+
+load('./formatted_open_data/species_codes.RData')
+load('./formatted_open_data/fishbase.RData')
+
+#make one giant matrix
+
+se <- function(x){sqrt(var(x,na.rm=TRUE)/length(na.omit(x)))}
+make.italic <- function(x) as.expression(lapply(x, function(y) bquote(italic(.(y)))))
+'%!in%' <- function(x,y)!('%in%'(x,y))
+mean.nona <- function(x){mean(x,na.rm=TRUE)}
+
+brains.df <- brains.df %>% group_by(Species) %>% summarise_all(mean.nona)
+diet.df <- diet.df %>% group_by(Species) %>% summarise_if(is.numeric, mean.nona)
+sum(table(ecology.df$Species) > 1)
+sum(table(estimate.df$Species) > 1)
+sum(table(genetics.df$Species) > 1)
+genetics.df <- genetics.df %>% group_by(Species) %>% summarise_if(is.numeric, mean.nona)
+
+fish.traits <- left_join(species.df, ecology.df, by = 'Species') %>% 
+  left_join(estimate.df, by='Species') %>%
+  left_join(brains.df, by='Species') %>% 
+  left_join(diet.df, by='Species') %>%
+  left_join(genetics.df, by='Species')
+
+marco.list <- read.csv('./formatted_open_data/Marco_spNames_clean_MELCC.csv', stringsAsFactors = F) %>% pull(species) %>% as.character
+marco.list %in% fish.traits$Species
+marco.list[marco.list %!in% fish.traits$Species]
+
+marco.traits <- filter(fish.traits, Species %in% marco.list)
+writexl::write_xlsx(marco.traits, '~/Desktop/Marco_traits.xlsx')
+
+### morphological traits stolen from Su et al (2021) Science
+
+load('./formatted_open_data/Su_2001/trait with missing value filled')
+
+
+
+
