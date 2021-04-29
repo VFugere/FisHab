@@ -6,7 +6,7 @@ library(writexl)
 poisson <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/MELCC/poissons/poissons.accdb.xlsx',sheet='Biomasse')
 
 poisson %>% group_by(ESPE) %>% summarize(bm = sum(BIOMASSE)) %>% arrange(desc(bm))
-poisson %>% group_by(ESPE) %>% summarize(bm = sum(QUANTITE)) %>% arrange(desc(bm))
+poisson %>% group_by(ESPE) %>% summarize(ab = sum(QUANTITE)) %>% arrange(desc(ab))
 
 n_distinct(poisson$ESPE)
 
