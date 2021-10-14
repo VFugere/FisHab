@@ -3,7 +3,7 @@ library(tidyverse)
 library(readxl)
 library(writexl)
 
-poisson <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/MELCC/poissons/poissons.accdb.xlsx',sheet='Biomasse')
+poisson <- read_xlsx('~/Google Drive/Recherche/Lake Pulse/data/MELCC/poissons/poissons.accdb.xlsx',sheet='Biomasse')
 
 poisson %>% group_by(ESPE) %>% summarize(bm = sum(BIOMASSE)) %>% arrange(desc(bm))
 poisson %>% group_by(ESPE) %>% summarize(ab = sum(QUANTITE)) %>% arrange(desc(ab))
@@ -23,10 +23,21 @@ old.g <- filter(old, METH.P == 'À GUÉ')
 table(old.g$RIVIERE)
 table(old.g$STATION)
 
+colnames(poisson) <- str_to_lower(colnames(poisson))
 
-sites <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/MELCC/poissons/poissons.accdb.xlsx',sheet='Stations')
-
-write_csv(sites,'~/Desktop/MELCC_sites.csv')
+sites <- read_xlsx('~/Google Drive/Recherche/Lake Pulse/data/MELCC/poissons/poissons.accdb.xlsx',sheet='Stations')
+depth <- read_xlsx('~/Google Drive/Recherche/Lake Pulse/data/MELCC/poissons/poissons.accdb.xlsx',sheet='HabitatPoisson') %>% select(STATION,LARG.RIV,PROF.MAX.RIVIE)
+sites <- left_join(sites, depth, by = c('STATION.BQMA' = 'STATION'))
+sites$LARG.RIV <- as.numeric(sites$LARG.RIV)
+sites$PROF.MAX.RIVIE <- str_replace(sites$PROF.MAX.RIVIE, ',','.')
+sites$PROF.MAX.RIVIE <- str_remove(sites$PROF.MAX.RIVIE, '>')
+sites$PROF.MAX.RIVIE <- str_remove(sites$PROF.MAX.RIVIE, '<')
+sites$PROF.MAX.RIVIE <- as.numeric(sites$PROF.MAX.RIVIE)
+oldest.poiss <- arrange(poisson, year) %>% distinct(STATION, .keep_all = T)
+sites <- left_join(sites, oldest.poiss[,c('STATION','year','METH.P')], by=c('STATION.BQMA' = 'STATION'))
+shallow <- filter(sites, PROF.MAX.RIVIE < 1)
+write_csv(shallow,'~/Desktop/MELCC_shallow_sites.csv')
+#write_csv(sites,'~/Desktop/MELCC_sites.csv')
 
 benthos.a <- read_xlsx('~/Google Drive/Recherche/Lake Pulse Postdoc/data/MELCC/Benthos sur des substrats articifiels/benthos.accdb.xlsx',sheet='Stations_benthos')
 benthos.a <- benthos.a %>% distinct(Stations) %>% filter(Stations %in% sites$STATION.BQMA)
