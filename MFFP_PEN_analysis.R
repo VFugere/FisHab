@@ -40,6 +40,7 @@ cpue <- read_xlsx('/Users/vincentfugere/Google Drive/Recherche/FisHab_LakePulse/
 com <- read_xlsx('/Users/vincentfugere/Google Drive/Recherche/FisHab_LakePulse/data/MFFP/deuxieme_envoi/PÊCHES EXPÉRIMENTALES 1988-2019 v20mars_SG (3).xlsx', sheet=2)
 fish.codes <- read_xlsx('/Users/vincentfugere/Google Drive/Recherche/FisHab_LakePulse/data/LP/fish_output/taxonomic_codes.xlsx', sheet='QC-MFFP')
 geo <- read_xlsx('/Users/vincentfugere/Google Drive/Recherche/FisHab_LakePulse/data/SIGEOM/phys-chem_SIGEOM(2021-03-17).xlsx')
+habitat <- read_xlsx('~/Desktop/FisHab_Habitat PEN.xlsx', sheet = 'Valeurs ponctuelles')
 
 #### format fish data ####
 
@@ -123,10 +124,16 @@ env <- yves %>% select(coords, Zmax:q) %>% right_join(env)
 env <- hlakes %>% filter(in_QGIS_LCE_falls_within_HL_polygon == 'yes') %>% 
   select(LCE,HL_Lake_area,HL_Shore_dev,HL_Depth_avg,HL_Wshd_area,HL_Elevation,HL_Res_time) %>%
   right_join(env, by='LCE')
-rm(yves,hlakes,sites)
+rm(yves,hlakes)
 
 watershed.area.km2 <- data.frame('LCE' = land.use$LCE, 'watershed.area.km2' = apply(land.use[,2:ncol(land.use)], 1, sum)/1000000, stringsAsFactors = F)
 env <- left_join(env, watershed.area.km2, by='LCE')
+
+#### add habitat data ####
+
+hab.clean <- habitat %>% select(No_lac,Transparence:conductivité) %>% group_by(No_lac) %>% summarize_all(~mean(.,na.rm=T))
+env <- left_join(env,hab.clean, by = c('LCE' = 'No_lac'))
+rm(hab.clean)
 
 #### add world clim data ####
 
@@ -196,7 +203,6 @@ g <-as.data.frame(vegan::scores(p)$sites[,1:2])
 
 geo <- bind_cols(geo, g[,1:2])
 env <- geo %>% select(coords, PC1, PC2) %>% right_join(env)
-
 rm(p,g,ordi)
 
 #### a few filters ####
@@ -216,10 +222,11 @@ env$HL_Elevation <- as.numeric(env$HL_Elevation)
 
 #renaming columns
 names(env) <- c('Sigeom PC1','Sigeom PC2','LCE','lake.area','ShoreDev','masl','residence_time','Zmax','Zmean','lat','long',
-                'watershed.area','Tmin','Tmax','LU.%ag','LU.%Anthro','LU.%Cut','LU.%Forest','LU.%Wetlands')
+                'watershed.area','transparency','pH','conductivity','Tmin','Tmax','LU.%ag','LU.%Anthro','LU.%Cut','LU.%Forest','LU.%Wetlands')
 
-#drop na for now
-env <- drop_na(env)
+# #remove vars with a lot of NAs?
+# skimr::skim(env)
+# env <- drop_na(env)
 
 #rearrange
 env <- env %>% select(LCE, lat, long, `Sigeom PC1`, `Sigeom PC2`, everything()) %>% 
@@ -233,6 +240,16 @@ names(connect) <- c('LCE','species','connectivity')
 cols <- RColorBrewer::brewer.pal(4,'Dark2')
 cols2 <- viridis::viridis(50)
 
+# #checking if genetic diversity correlates with connectivity
+# gd <- read_csv('/Users/vincentfugere/Google Drive/Recherche/FisHab_LakePulse/data/Ferchaud gen div/ferchaud_joined.csv')
+# gd <- gd %>% filter(ID_RHS %in% sites$RHS, distance < 1000)
+# gd$LCE <- sites$LCE[match(gd$ID_RHS,sites$RHS)]
+# gd <- connect %>% filter(LCE %in% gd$LCE) %>% 
+#   pivot_wider(id_cols = LCE, names_from = species, values_from = connectivity) %>%
+#   left_join(gd)
+# gd.sub <- gd %>% select(`Brook trout (high)`,MeanFst,`Average Pi`,POLYMORPHIC_PROP)
+# plot(gd.sub)
+
 #### random forest for walleye
 
 dat <- filter(cpue.clean, survey == 'PENDJ') %>%
@@ -242,6 +259,7 @@ dat <- connect %>% filter(str_detect(species, 'Walleye'), LCE %in% dat$LCE, str_
   select(-species) %>% inner_join(dat) %>% select(-LCE) %>% select(CPUE, year, everything()) %>% 
   mutate_at(vars(CPUE), log10) %>% mutate_at(vars(year), as.factor) %>%
   mutate_at(vars(connectivity:`LU.%Wetlands`), scale)
+dat <- filter(dat, is.finite(CPUE), !is.na(CPUE))
 
 r2.vec <- numeric(0)
 imp.vec <- data.frame()
@@ -300,6 +318,7 @@ dat <- connect %>% filter(str_detect(species, 'Brook trout'), LCE %in% dat$LCE, 
   select(-species) %>% inner_join(dat) %>% select(-LCE) %>% select(CPUE, year, everything()) %>% 
   mutate_at(vars(CPUE), log10) %>% mutate_at(vars(year), as.factor) %>%
   mutate_at(vars(connectivity:`LU.%Wetlands`), scale)
+dat <- filter(dat, is.finite(CPUE), !is.na(CPUE))
 
 r2.vec <- numeric(0)
 imp.vec <- data.frame()
@@ -352,6 +371,7 @@ dat <- connect %>% filter(str_detect(species, 'Lake trout'), LCE %in% dat$LCE, s
   select(-species) %>% inner_join(dat) %>% select(-LCE) %>% select(CPUE, year, everything()) %>% 
   mutate_at(vars(CPUE), log10) %>% mutate_at(vars(year), as.factor) %>%
   mutate_at(vars(connectivity:`LU.%Wetlands`), scale)
+dat <- filter(dat, is.finite(CPUE), !is.na(CPUE))
 
 r2.vec <- numeric(0)
 imp.vec <- data.frame()
@@ -381,18 +401,21 @@ dev.off()
 #### random forest for diversity
 
 dat <- com %>% group_by(LCE,survey) %>%
-  summarise('richness' = n_distinct(species), 'nets' = sum(n.stations)) %>%
+  summarise('richness' = n_distinct(species), 'nb_inv' = sum(n.stations)) %>%
   left_join(env, by = 'LCE') %>% arrange(LCE) %>% drop_na
 dat <- connect %>% filter(LCE %in% dat$LCE, str_detect(species, '(high)')) %>%
   group_by(LCE) %>% summarize(connectivity = mean(connectivity)) %>%
   inner_join(dat) %>% select(-LCE) %>% 
-  mutate_at(vars(richness,nets), log10) %>% mutate_at(vars(survey), as.factor)
+  mutate_at(vars(richness,nb_inv), log10) %>% mutate_at(vars(survey), as.factor)
 
-plot(richness~nets,dat,ylab='log10 richness',xlab='log10 nets',pch=16)
-mod <- gam(richness ~ s(nets,k=10),data=dat)
-plot_smooth(mod, view = 'nets',col=1,add=T,rug=F)
+par(mfrow=c(1,2))
+plot(richness~nb_inv,dat,ylab='log10 richness',xlab="log10 Nb. d'inventaire",pch=16)
+plot(y=(10^dat$richness),x=(10^dat$nb_inv),ylab='richesse spécifique',xlab="Nb. d'inventaire",pch=16)
+
+mod <- gam(richness ~ s(nb_inv,k=10),data=dat)
+plot_smooth(mod, view = 'nb_inv',col=1,add=T,rug=F)
 dat$richness <- resid(mod)
-dat <- select(dat, -nets)
+dat <- select(dat, -nb_inv)
 
 r2.vec <- numeric(0)
 imp.vec <- data.frame()
