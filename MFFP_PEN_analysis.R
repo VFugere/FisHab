@@ -41,12 +41,13 @@ com <- read_xlsx('/Users/vincentfugere/Google Drive/Recherche/FisHab_LakePulse/d
 fish.codes <- read_xlsx('/Users/vincentfugere/Google Drive/Recherche/FisHab_LakePulse/data/LP/fish_output/taxonomic_codes.xlsx', sheet='QC-MFFP')
 geo <- read_xlsx('/Users/vincentfugere/Google Drive/Recherche/FisHab_LakePulse/data/SIGEOM/phys-chem_SIGEOM(2021-03-17).xlsx')
 habitat <- read_xlsx('~/Desktop/FisHab_Habitat PEN.xlsx', sheet = 'Valeurs ponctuelles')
+profiles <- read_xlsx('~/Desktop/FisHab_Habitat PEN.xlsx', sheet = 'Profil')
 
 #### format fish data ####
 
 #cpue
-cpue <- select(cpue, 3, 5:7, 10, 12)
-colnames(cpue) <- c('LCE','n.stations','year','survey','species','CPUE')
+cpue <- select(cpue, 3, 6:7, 10, 12)
+colnames(cpue) <- c('LCE','year','survey','species','CPUE')
 cpue <- arrange(cpue, LCE, desc(year))
 #filter(cpue, survey == 'PENOC') %>% with(.,table(species,LCE))
 #parfois saal, parfois saoq, jamais les deux dans le même lac
@@ -56,7 +57,7 @@ cpue <- arrange(cpue, LCE, desc(year))
 #otherwise we take the last year
 cpue.clean <- cpue[0,]
 
-for(survey in c('PENOF','PENT','PENDJ')){
+for(survey in c('PENOF','PENT','PENDJ','PENOC')){
   surv.dat <- cpue[cpue$survey == survey,]
   for(lac in unique(surv.dat$LCE)){
     sub <- surv.dat[surv.dat$LCE == lac,]
@@ -66,13 +67,10 @@ for(survey in c('PENOF','PENT','PENDJ')){
       if(-1 %in% diff(sub$year)){
         idx <- which.min(diff(sub$year)==-1)
         sub <- sub[c(idx,idx+1),]
-        #sum.stations <- sum(sub$n.stations)
-        #w.mean <- weighted.mean(x = sub$CPUE, w = sub$n.stations) # DO NOT USE weighted mean
-        uw.mean <- mean(x = sub$CPUE, na.rm=T) # number of stations DOES NOT reflect sampling effort. An internal code for survey number
-        yr <- sub$year[which.max(sub$n.stations)]
-        sub$n.stations <- sub$n.stations[which.max(sub$n.stations)]
+        mean <- mean(x = sub$CPUE, na.rm=T)
+        yr <- max(sub$year)
         sub <- sub[1,]
-        sub$CPUE <- uw.mean
+        sub$CPUE <- mean
         sub$year <- yr
         cpue.clean <- rbind(cpue.clean,sub)
       }else{
@@ -83,9 +81,11 @@ for(survey in c('PENOF','PENT','PENDJ')){
   }
 }
 
+cpue.clean <- filter(cpue.clean, survey != 'PENOC')
+
 #com
 com <- select(com, 3, 5:7, 10)
-colnames(com) <- c('LCE','n.stations','year','survey','species')
+colnames(com) <- c('LCE','surv.number','year','survey','species')
 bad.sp.codes <- c('RIEN','-','POIS','NI','AU')
 com <- filter(com, species %!in% bad.sp.codes)
 genera <- fish.codes %>% filter(!is.na(genus))
@@ -121,9 +121,10 @@ sites$coords <- paste(round(sites$lce_lat,2),round(sites$lce_long,2),sep=',')
 env <- select(sites, LCE, lce_lat, lce_long, coords)
 yves$coords <- paste(round(yves$lce_lat,2),round(yves$lce_long,2),sep=',')
 env <- yves %>% select(coords, Zmax:q) %>% right_join(env)
-env <- hlakes %>% filter(in_QGIS_LCE_falls_within_HL_polygon == 'yes') %>% 
+hlakes <- hlakes %>% filter(in_QGIS_LCE_falls_within_HL_polygon == 'yes') %>% 
   select(LCE,HL_Lake_area,HL_Shore_dev,HL_Depth_avg,HL_Wshd_area,HL_Elevation,HL_Res_time) %>%
-  right_join(env, by='LCE')
+  filter(LCE %in% env$LCE)
+env <- right_join(hlakes, env, by='LCE')
 rm(yves,hlakes)
 
 watershed.area.km2 <- data.frame('LCE' = land.use$LCE, 'watershed.area.km2' = apply(land.use[,2:ncol(land.use)], 1, sum)/1000000, stringsAsFactors = F)
@@ -141,8 +142,8 @@ tmax <- raster('/Users/vincentfugere/Google Drive/Recherche/FisHab_LakePulse/dat
   mean
 tmin <- raster('/Users/vincentfugere/Google Drive/Recherche/FisHab_LakePulse/data/GIS/WorldClim/tminBrick.tif') %>% 
   mean
-#library(rgdal)
-#writeRaster(tmax, '~/Desktop/worldclim_max_mean.tif', format='GTiff')
+# library(rgdal)
+# writeRaster(tmax, '~/Desktop/worldclim_max_mean.tif', format='GTiff')
 pensites <- SpatialPoints(coords = env[,c('lce_long','lce_lat')])
 env$tmin <- raster::extract(tmax, pensites) #names inverted in Marco's worldclim files
 env$tmax <- raster::extract(tmin, pensites)
@@ -229,8 +230,14 @@ names(env) <- c('Sigeom PC1','Sigeom PC2','LCE','lake.area','ShoreDev','masl','r
 # env <- drop_na(env)
 
 #rearrange
-env <- env %>% select(LCE, lat, long, `Sigeom PC1`, `Sigeom PC2`, everything()) %>% 
+env <- env %>% select(LCE, lat, long, -`Sigeom PC1`, -`Sigeom PC2`, everything()) %>% 
   arrange(LCE)
+
+# M <- cor(env[,6:22], use='pairwise.complete.obs')
+# library(corrplot)
+# corrplot(M, type = "upper",tl.col=1,diag=F)
+# corrplot(M, add = TRUE, type = "lower", method = "number",
+#          diag = FALSE, tl.pos = "n", cl.pos = "n")
 
 #connect
 connect <- connect %>% select(1:3)
@@ -257,8 +264,8 @@ dat <- filter(cpue.clean, survey == 'PENDJ') %>%
   inner_join(select(env,-`Sigeom PC1`,-`Sigeom PC2`))
 dat <- connect %>% filter(str_detect(species, 'Walleye'), LCE %in% dat$LCE, str_detect(species, '(high)')) %>%
   select(-species) %>% inner_join(dat) %>% select(-LCE) %>% select(CPUE, year, everything()) %>% 
-  mutate_at(vars(CPUE), log10) %>% mutate_at(vars(year), as.factor) %>%
-  mutate_at(vars(connectivity:`LU.%Wetlands`), scale)
+  mutate_at(vars(CPUE), log10) %>% mutate_at(vars(year), as.numeric) %>%
+  mutate_at(vars(year:`LU.%Wetlands`), scale)
 dat <- filter(dat, is.finite(CPUE), !is.na(CPUE))
 
 r2.vec <- numeric(0)
@@ -316,8 +323,8 @@ dat <- filter(cpue.clean, survey == 'PENOF') %>%
   inner_join(env)
 dat <- connect %>% filter(str_detect(species, 'Brook trout'), LCE %in% dat$LCE, str_detect(species, '(high)')) %>%
   select(-species) %>% inner_join(dat) %>% select(-LCE) %>% select(CPUE, year, everything()) %>% 
-  mutate_at(vars(CPUE), log10) %>% mutate_at(vars(year), as.factor) %>%
-  mutate_at(vars(connectivity:`LU.%Wetlands`), scale)
+  mutate_at(vars(CPUE), log10) %>% mutate_at(vars(year), as.numeric) %>%
+  mutate_at(vars(year:`LU.%Wetlands`), scale)
 dat <- filter(dat, is.finite(CPUE), !is.na(CPUE))
 
 r2.vec <- numeric(0)
@@ -369,8 +376,8 @@ dat <- filter(cpue.clean, survey == 'PENT') %>%
   inner_join(env)
 dat <- connect %>% filter(str_detect(species, 'Lake trout'), LCE %in% dat$LCE, str_detect(species, '(low)')) %>%
   select(-species) %>% inner_join(dat) %>% select(-LCE) %>% select(CPUE, year, everything()) %>% 
-  mutate_at(vars(CPUE), log10) %>% mutate_at(vars(year), as.factor) %>%
-  mutate_at(vars(connectivity:`LU.%Wetlands`), scale)
+  mutate_at(vars(CPUE), log10) %>% mutate_at(vars(year), as.numeric) %>%
+  mutate_at(vars(year:`LU.%Wetlands`), scale)
 dat <- filter(dat, is.finite(CPUE), !is.na(CPUE))
 
 r2.vec <- numeric(0)
@@ -401,7 +408,7 @@ dev.off()
 #### random forest for diversity
 
 dat <- com %>% group_by(LCE,survey) %>%
-  summarise('richness' = n_distinct(species), 'nb_inv' = sum(n.stations)) %>%
+  summarise('richness' = n_distinct(species), 'nb_inv' = sum(surv.number)) %>%
   left_join(env, by = 'LCE') %>% arrange(LCE) %>% drop_na
 dat <- connect %>% filter(LCE %in% dat$LCE, str_detect(species, '(high)')) %>%
   group_by(LCE) %>% summarize(connectivity = mean(connectivity)) %>%
@@ -460,7 +467,7 @@ ggplot(data = world) +
   annotation_north_arrow(location = "tr", which_north = "true", 
                          pad_x = unit(0.2, "in"), pad_y = unit(0.2, "in"),
                          style = north_arrow_fancy_orienteering) +
-  geom_point(data=dat,aes(x=long,y=lat,col=richness)) + scale_color_viridis()
+  geom_point(data=dat,aes(x=long,y=lat,col=richness,pch=survey)) + scale_color_viridis() + scale_shape_manual(values=c(15,16,17,18))
 
 bp <- ggplot(dat, aes(x=survey, y=richness, fill=survey)) + 
   geom_boxplot()+
